@@ -2441,6 +2441,14 @@ long _do_fork(struct kernel_clone_args *args)
 	}
 
 	p = copy_process(NULL, trace, NUMA_NO_NODE, args);
+
+	/* 
+	* Qi:
+	* initlize isolated kernel parameters
+	*/
+
+	p->shed_min_granularity = -1;
+
 	add_latent_entropy();
 
 	if (IS_ERR(p))

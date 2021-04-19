@@ -685,6 +685,12 @@ struct task_struct {
 #endif
 	struct sched_dl_entity		dl;
 
+	/*
+	 * Qi:
+	 * test for isolating kernel parameters 
+	 */
+	int shed_min_granularity;
+
 #ifdef CONFIG_UCLAMP_TASK
 	/* Clamp values requested for a scheduling entity */
 	struct uclamp_se		uclamp_req[UCLAMP_CNT];
@@ -1467,7 +1473,7 @@ static inline char task_state_to_char(struct task_struct *tsk)
 /**
  * is_global_init - check if a task structure is init. Since init
  * is free to have sub-threads we need to check tgid.
- * @tsk: Task structure to be checked.
+ * @tsk: Task structure to be checked.id 
  *
  * Check if a task structure is the first user space task the kernel created.
  *

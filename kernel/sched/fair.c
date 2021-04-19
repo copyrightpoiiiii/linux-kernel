@@ -629,7 +629,7 @@ static struct sched_entity *__pick_next_entity(struct sched_entity *se)
 	return rb_entry(next, struct sched_entity, run_node);
 }
 
-#ifdef CONFIG_SCHED_DEBUG
+//#ifdef CONFIG_SCHED_DEBUG
 struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline.rb_root);
@@ -647,12 +647,14 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 int sched_proc_update_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct task_struct* tsk = current;
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	unsigned int factor = get_update_sysctl_factor();
 
 	if (ret || !write)
 		return ret;
 
+	if (tsk->shed_min_granularity)
 	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
 					sysctl_sched_min_granularity);
 
@@ -665,7 +667,7 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 
 	return 0;
 }
-#endif
+//#endif
 
 /*
  * delta /= w
@@ -688,10 +690,22 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
  */
 static u64 __sched_period(unsigned long nr_running)
 {
-	if (unlikely(nr_running > sched_nr_latency))
-		return nr_running * sysctl_sched_min_granularity;
+	struct task_struct* tsk = current;
+	if (tsk->shed_min_granularity == -1)
+	{
+		if (unlikely(nr_running > sched_nr_latency))
+			return nr_running * sysctl_sched_min_granularity;
+		else
+			return sysctl_sched_latency;
+	}
 	else
-		return sysctl_sched_latency;
+	{
+		if(unlikely(nr_running > tsk->shed_min_granularity))
+			return nr_running * tsk->shed_min_granularity;
+		else
+			return tsk->shed_min_granularity;
+	}
+
 }
 
 /*
@@ -4342,6 +4356,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 static void
 check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
+	struct task_struct* tsk = current;
 	unsigned long ideal_runtime, delta_exec;
 	struct sched_entity *se;
 	s64 delta;
@@ -4363,8 +4378,17 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 * narrow margin doesn't have to wait for a full slice.
 	 * This also mitigates buddy induced latencies under load.
 	 */
-	if (delta_exec < sysctl_sched_min_granularity)
-		return;
+	
+	if (tsk->shed_min_granularity == -1)
+	{
+		if (delta_exec < sysctl_sched_min_granularity)
+				return;
+	}
+	else
+	{
+		if (delta_exec < tsk->shed_min_granularity)
+			return;
+	}
 
 	se = __pick_first_entity(cfs_rq);
 	delta = curr->vruntime - se->vruntime;

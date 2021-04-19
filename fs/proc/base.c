@@ -3142,12 +3142,67 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
 static const struct file_operations proc_task_operations;
 static const struct inode_operations proc_task_inode_operations;
 
+
+/*
+ * Qi:
+ * 	operations for sched_min_granularity_ns
+ */
+static ssize_t sched_read(struct file *file, char __user *buf,
+			size_t count, loff_t *ppos)
+{
+	struct task_struct *task = get_proc_task(file_inode(file));
+	char buffer[PROC_NUMBUF];
+	size_t len;
+	int ret;
+
+	if(!task)
+	{
+		return -ESRCH;
+	}
+
+	len = sprintf(buf,"%d",task->shed_min_granularity);
+	ret = simple_read_from_buffer(buf, count, ppos, buffer, len);
+
+	put_task_struct(task);
+
+	return ret;
+}
+
+static ssize_t sched_write(struct file *file, const char __user *buf,
+			    size_t count, loff_t *offs)
+{
+	struct task_struct *task = get_proc_task(file_inode(file));
+	int value;
+
+	if (!task)
+		return -ESRCH;
+	
+	value = atoi(buf);
+	task->shed_min_granularity = value;
+
+	put_task_struct(task);
+
+	return count;
+}
+
+static const struct file_operations sched_min_granularity_operations = {
+	.read		= sched_read,
+	.write		= sched_write
+};
+
 static const struct pid_entry tgid_base_stuff[] = {
 	DIR("task",       S_IRUGO|S_IXUGO, proc_task_inode_operations, proc_task_operations),
 	DIR("fd",         S_IRUSR|S_IXUSR, proc_fd_inode_operations, proc_fd_operations),
 	DIR("map_files",  S_IRUSR|S_IXUSR, proc_map_files_inode_operations, proc_map_files_operations),
 	DIR("fdinfo",     S_IRUSR|S_IXUSR, proc_fdinfo_inode_operations, proc_fdinfo_operations),
 	DIR("ns",	  S_IRUSR|S_IXUGO, proc_ns_dir_inode_operations, proc_ns_dir_operations),
+
+	/*
+		Qi:
+		add api to modify kernel parameter
+	*/
+	REG("shed_min_granularity_ns",		S_IRUSR|S_IWUSR, sched_min_granularity_operations),
+
 #ifdef CONFIG_NET
 	DIR("net",        S_IRUGO|S_IXUGO, proc_net_inode_operations, proc_net_operations),
 #endif
