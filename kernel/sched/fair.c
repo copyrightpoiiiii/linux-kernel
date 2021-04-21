@@ -654,9 +654,16 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 	if (ret || !write)
 		return ret;
 
-	if (tsk->shed_min_granularity)
-	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
-					sysctl_sched_min_granularity);
+	if (tsk->shed_min_granularity == -1)
+	{
+		sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+						sysctl_sched_min_granularity);
+	}
+	else
+	{
+		sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+						tsk->shed_min_granularity);
+	}
 
 #define WRT_SYSCTL(name) \
 	(normalized_sysctl_##name = sysctl_##name / (factor))
@@ -703,7 +710,7 @@ static u64 __sched_period(unsigned long nr_running)
 		if(unlikely(nr_running > tsk->shed_min_granularity))
 			return nr_running * tsk->shed_min_granularity;
 		else
-			return tsk->shed_min_granularity;
+			return sysctl_sched_latency;
 	}
 
 }

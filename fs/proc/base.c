@@ -3147,7 +3147,10 @@ static const struct inode_operations proc_task_inode_operations;
  * Qi:
  * 	operations for sched_min_granularity_ns
  */
-static ssize_t sched_read(struct file *file, char __user *buf,
+
+extern unsigned int sysctl_sched_min_granularity;
+
+static ssize_t sched_latency_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	struct task_struct *task = get_proc_task(file_inode(file));
@@ -3155,12 +3158,19 @@ static ssize_t sched_read(struct file *file, char __user *buf,
 	size_t len;
 	int ret;
 
-	if(!task)
+	if (!task)
 	{
 		return -ESRCH;
 	}
 
-	len = sprintf(buf,"%d",task->shed_min_granularity);
+	if (task->shed_min_granularity == -1)
+	{
+		len = sprintf(buffer,"%d",sysctl_sched_min_granularity);
+	}
+	else 
+	{
+		len = sprintf(buffer,"%d",task->shed_min_granularity);
+	}
 	ret = simple_read_from_buffer(buf, count, ppos, buffer, len);
 
 	put_task_struct(task);
@@ -3168,26 +3178,32 @@ static ssize_t sched_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static ssize_t sched_write(struct file *file, const char __user *buf,
+static ssize_t sched_latency_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offs)
 {
 	struct task_struct *task = get_proc_task(file_inode(file));
-	int value;
+	int value,pos;
 
 	if (!task)
 		return -ESRCH;
 	
-	value = atoi(buf);
+	value = 0;
+	pos = 0;
+	while(buf[pos] >= '0' && buf[pos]<='9')
+	{
+		value = value * 10 + buf[pos] - '0';
+		pos++;
+	}
 	task->shed_min_granularity = value;
-
+	
 	put_task_struct(task);
 
-	return count;
+	return pos;
 }
 
 static const struct file_operations sched_min_granularity_operations = {
-	.read		= sched_read,
-	.write		= sched_write
+	.read		= sched_latency_read,
+	.write		= sched_latency_write
 };
 
 static const struct pid_entry tgid_base_stuff[] = {
