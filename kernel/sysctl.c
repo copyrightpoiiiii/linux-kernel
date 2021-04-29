@@ -1672,7 +1672,7 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "sched_latency_ns",
-		.data		= &sysctl_sched_latency,
+		.data		= &sec_sched_latency,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= sched_proc_update_handler,

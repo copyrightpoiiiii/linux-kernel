@@ -1843,6 +1843,10 @@ static void process_timeout(struct timer_list *t)
 	wake_up_process(timeout->task);
 }
 
+extern unsigned int sec_sched_latency;
+
+extern unsigned int sysctl_sched_min_granularity;
+
 /**
  * schedule_timeout - sleep until timeout
  * @timeout: timeout value in jiffies
@@ -1903,6 +1907,10 @@ signed long __sched schedule_timeout(signed long timeout)
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
 				"value %lx\n", timeout);
 			dump_stack();
+			if (current->state != TASK_RUNNING)
+			{
+				sec_sched_latency += current->sched_min_granularity;
+			}
 			current->state = TASK_RUNNING;
 			goto out;
 		}

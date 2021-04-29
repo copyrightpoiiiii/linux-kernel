@@ -3149,6 +3149,7 @@ static const struct inode_operations proc_task_inode_operations;
  */
 
 extern unsigned int sysctl_sched_min_granularity;
+extern unsigned int sec_sched_latency;
 
 static ssize_t sched_latency_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
@@ -3163,14 +3164,7 @@ static ssize_t sched_latency_read(struct file *file, char __user *buf,
 		return -ESRCH;
 	}
 
-	if (task->shed_min_granularity == -1)
-	{
-		len = sprintf(buffer,"%d",sysctl_sched_min_granularity);
-	}
-	else 
-	{
-		len = sprintf(buffer,"%d",task->shed_min_granularity);
-	}
+	len = sprintf(buffer,"%d\n",task->sched_min_granularity);
 	ret = simple_read_from_buffer(buf, count, ppos, buffer, len);
 
 	put_task_struct(task);
@@ -3182,23 +3176,30 @@ static ssize_t sched_latency_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offs)
 {
 	struct task_struct *task = get_proc_task(file_inode(file));
-	int value,pos;
+	unsigned int val;
+	int err;
 
 	if (!task)
 		return -ESRCH;
-	
-	value = 0;
-	pos = 0;
-	while(buf[pos] >= '0' && buf[pos]<='9')
+
+	val = 0;
+
+	err = kstrtouint_from_user(buf, count, 0, &val);
+
+	if (err)
 	{
-		value = value * 10 + buf[pos] - '0';
-		pos++;
+		return err;
 	}
-	task->shed_min_granularity = value;
-	
+		
+	if( val >= 100000 && val <= NSEC_PER_SEC )
+	{
+		sec_sched_latency += (val - task->sched_min_granularity);
+		task->sched_min_granularity = val;
+	}
+
 	put_task_struct(task);
 
-	return pos;
+	return count;
 }
 
 static const struct file_operations sched_min_granularity_operations = {
@@ -3217,7 +3218,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 		Qi:
 		add api to modify kernel parameter
 	*/
-	REG("shed_min_granularity_ns",		S_IRUSR|S_IWUSR, sched_min_granularity_operations),
+	REG("sched_min_granularity_ns",		S_IRUSR|S_IWUSR, sched_min_granularity_operations),
 
 #ifdef CONFIG_NET
 	DIR("net",        S_IRUGO|S_IXUGO, proc_net_inode_operations, proc_net_operations),

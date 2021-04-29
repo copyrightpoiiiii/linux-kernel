@@ -27,6 +27,7 @@ enum { sysctl_hung_task_timeout_secs = 0 };
 #endif
 
 extern unsigned int sysctl_sched_latency;
+extern unsigned int sec_sched_latency;
 extern unsigned int sysctl_sched_min_granularity;
 extern unsigned int sysctl_sched_wakeup_granularity;
 extern unsigned int sysctl_sched_child_runs_first;

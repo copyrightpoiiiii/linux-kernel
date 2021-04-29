@@ -75,6 +75,10 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+extern unsigned int sec_sched_latency;
+
+extern unsigned int sysctl_sched_min_granularity;
+
 /*
  * __task_rq_lock - lock the rq @p resides on.
  */
@@ -2194,6 +2198,10 @@ static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
 			   struct rq_flags *rf)
 {
 	check_preempt_curr(rq, p, wake_flags);
+	if (p->state != TASK_RUNNING)
+	{
+		sec_sched_latency += p->sched_min_granularity;
+	}
 	p->state = TASK_RUNNING;
 	trace_sched_wakeup(p);
 
@@ -2533,6 +2541,10 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 		success = 1;
 		trace_sched_waking(p);
+		if (p->state != TASK_RUNNING)
+		{
+			sec_sched_latency += p->sched_min_granularity;
+		}
 		p->state = TASK_RUNNING;
 		trace_sched_wakeup(p);
 		goto out;
@@ -3019,6 +3031,10 @@ void wake_up_new_task(struct task_struct *p)
 	struct rq *rq;
 
 	raw_spin_lock_irqsave(&p->pi_lock, rf.flags);
+	if (p->state != TASK_RUNNING)
+	{
+		sec_sched_latency += p->sched_min_granularity;
+	}
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
 	/*
@@ -4155,6 +4171,8 @@ static void __sched notrace __schedule(bool preempt)
 		if (signal_pending_state(prev_state, prev)) {
 			prev->state = TASK_RUNNING;
 		} else {
+			sec_sched_latency -= prev->sched_min_granularity;
+			
 			prev->sched_contributes_to_load =
 				(prev_state & TASK_UNINTERRUPTIBLE) &&
 				!(prev_state & TASK_NOLOAD) &&

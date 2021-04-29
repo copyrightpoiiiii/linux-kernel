@@ -689,7 +689,7 @@ struct task_struct {
 	 * Qi:
 	 * test for isolating kernel parameters 
 	 */
-	int shed_min_granularity;
+	unsigned int sched_min_granularity;
 
 #ifdef CONFIG_UCLAMP_TASK
 	/* Clamp values requested for a scheduling entity */

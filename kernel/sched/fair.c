@@ -40,6 +40,8 @@
 unsigned int sysctl_sched_latency			= 6000000ULL;
 static unsigned int normalized_sysctl_sched_latency	= 6000000ULL;
 
+unsigned int sec_sched_latency = 300000ULL;
+
 /*
  * The initial- and re-scaling of tunables is configurable
  *
@@ -647,23 +649,14 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 int sched_proc_update_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct task_struct* tsk = current;
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	unsigned int factor = get_update_sysctl_factor();
 
 	if (ret || !write)
 		return ret;
 
-	if (tsk->shed_min_granularity == -1)
-	{
-		sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
-						sysctl_sched_min_granularity);
-	}
-	else
-	{
-		sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
-						tsk->shed_min_granularity);
-	}
+	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+					sysctl_sched_min_granularity);
 
 #define WRT_SYSCTL(name) \
 	(normalized_sysctl_##name = sysctl_##name / (factor))
@@ -697,22 +690,10 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
  */
 static u64 __sched_period(unsigned long nr_running)
 {
-	struct task_struct* tsk = current;
-	if (tsk->shed_min_granularity == -1)
-	{
-		if (unlikely(nr_running > sched_nr_latency))
-			return nr_running * sysctl_sched_min_granularity;
-		else
-			return sysctl_sched_latency;
-	}
+	if (unlikely(nr_running > sched_nr_latency))
+		return min((unsigned int)nr_running * (unsigned int)NSEC_PER_SEC, max(sec_sched_latency, sysctl_sched_latency));
 	else
-	{
-		if(unlikely(nr_running > tsk->shed_min_granularity))
-			return nr_running * tsk->shed_min_granularity;
-		else
-			return sysctl_sched_latency;
-	}
-
+		return sysctl_sched_latency;
 }
 
 /*
@@ -4386,16 +4367,8 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 * This also mitigates buddy induced latencies under load.
 	 */
 	
-	if (tsk->shed_min_granularity == -1)
-	{
-		if (delta_exec < sysctl_sched_min_granularity)
-				return;
-	}
-	else
-	{
-		if (delta_exec < tsk->shed_min_granularity)
-			return;
-	}
+	if (delta_exec < tsk->sched_min_granularity)
+		return;
 
 	se = __pick_first_entity(cfs_rq);
 	delta = curr->vruntime - se->vruntime;

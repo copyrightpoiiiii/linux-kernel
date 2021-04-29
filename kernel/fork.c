@@ -125,6 +125,8 @@ int nr_threads;			/* The idle threads do not count.. */
 
 static int max_threads;		/* tunable limit on nr_threads */
 
+extern unsigned int sysctl_sched_min_granularity;
+
 #define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x)
 
 static const char * const resident_page_types[] = {
@@ -2447,7 +2449,7 @@ long _do_fork(struct kernel_clone_args *args)
 	* initlize isolated kernel parameters
 	*/
 
-	p->shed_min_granularity = -1;
+	p->sched_min_granularity = sysctl_sched_min_granularity;
 
 	add_latent_entropy();
 
